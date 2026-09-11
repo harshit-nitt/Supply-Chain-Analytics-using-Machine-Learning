@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipment Delay Prediction</title>
+<meta name="description" content="Predicting late shipments at order time: findings, model results and recommendations from 180,519 DataCo supply chain orders.">
+<style>
+  :root{
+    --ink:#14263D;
+    --text:#3F4B5B;
+    --muted:#6B7686;
+    --rule:#E2E6EB;
+    --paper:#FFFFFF;
+    --wash:#F5F7F9;
+    --late:#D9822B;
+    --late-soft:#F6E3CF;
+    --ontime:#2E6F8E;
+    --focus:#2E6F8E;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--paper);color:var(--text);
+    font-family:Seravek,"Gill Sans Nova",Ubuntu,Calibri,"DejaVu Sans",source-sans-pro,sans-serif;
+    font-size:17px;line-height:1.55;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:0 28px}
+  h1,h2,h3{color:var(--ink);font-weight:600;line-height:1.2;margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px);letter-spacing:-.01em;max-width:24ch}
+  h2{font-size:26px;margin-bottom:10px}
+  h3{font-size:18px}
+  p{margin:0 0 14px;max-width:68ch}
+  a{color:var(--ontime)}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* header */
+  .top{border-bottom:1px solid var(--rule)}
+  .top .wrap{display:flex;justify-content:space-between;align-items:center;height:60px;gap:16px}
+  .brand{font-weight:600;color:var(--ink);font-size:16px}
+  .top nav{display:flex;gap:22px;font-size:15px}
+  .top nav a{color:var(--muted);text-decoration:none}
+  .top nav a:hover{color:var(--ink)}
+
+  /* hero */
+  .hero{padding:56px 0 40px}
+  .lede{font-size:19px;margin-top:16px;max-width:60ch}
+  .facts{display:flex;flex-wrap:wrap;gap:12px 40px;margin-top:28px;padding-top:22px;border-top:1px solid var(--rule)}
+  .fact b{display:block;font-size:26px;color:var(--ink);font-weight:600}
+  .fact span{font-size:14px;color:var(--muted)}
+
+  /* explorer */
+  .explorer{background:var(--wash);border:1px solid var(--rule);border-radius:10px;padding:26px 28px 22px;margin-top:8px}
+  .ex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+  .ex-head p{margin:4px 0 0;font-size:15px;color:var(--muted)}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .tabs button{
+    font:inherit;font-size:14px;padding:6px 12px;border-radius:6px;cursor:pointer;
+    background:var(--paper);color:var(--text);border:1px solid var(--rule)
+  }
+  .tabs button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .bars{list-style:none;margin:0;padding:0;position:relative}
+  .bar{display:grid;grid-template-columns:170px 1fr 58px;align-items:center;gap:14px;padding:6px 0}
+  .bar .label{font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .track{position:relative;height:22px;background:var(--paper);border-radius:4px;border:1px solid var(--rule)}
+  .fill{position:absolute;inset:0 auto 0 0;background:var(--late);border-radius:3px 0 0 3px;transition:width .5s ease}
+  .avg{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--ink);opacity:.55}
+  .bar .val{font-size:15px;color:var(--ink);text-align:right;font-weight:600}
+  .ex-foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-top:14px}
+  .key{display:inline-flex;align-items:center;gap:8px}
+  .key i{display:inline-block;width:18px;border-top:2px dashed var(--ink);opacity:.55}
+  .insight{margin-top:14px;font-size:16px;color:var(--ink)}
+
+  /* sections */
+  section.block{padding:56px 0 8px}
+  .intro{color:var(--muted);margin-bottom:24px}
+
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th,td{padding:12px 10px;text-align:right;border-bottom:1px solid var(--rule)}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:500;font-size:14px}
+  td{color:var(--ink)}
+  tr.best td{background:var(--late-soft);font-weight:600}
+  .tag{display:inline-block;font-size:12px;font-weight:600;color:var(--late);border:1px solid var(--late);border-radius:4px;padding:0 6px;margin-left:8px;vertical-align:2px;background:#fff}
+  .scroll{overflow-x:auto}
+
+  .tradeoff{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:26px;border:1px solid var(--rule);border-radius:10px}
+  .tradeoff div{padding:18px 20px}
+  .tradeoff div+div{border-left:1px solid var(--rule)}
+  .tradeoff b{display:block;font-size:24px;color:var(--ink)}
+  .tradeoff small{display:block;color:var(--muted);font-size:14px}
+  .up{color:var(--ontime)} .down{color:var(--late)}
+
+  .drivers .bar{grid-template-columns:250px 1fr 58px}
+  .drivers .fill{background:var(--ontime)}
+  .note{font-size:13px;color:var(--late);display:block;margin-top:1px}
+
+  .recs{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:0 44px}
+  .recs li{padding:18px 0;border-top:1px solid var(--rule)}
+  .recs h3{margin-bottom:6px}
+  .recs p{font-size:16px;margin:0}
+
+  .steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(5,1fr);gap:18px}
+  .steps li{counter-increment:s;font-size:15px;border-top:3px solid var(--ink);padding-top:12px}
+  .steps li::before{content:counter(s);display:block;font-weight:600;color:var(--muted);font-size:14px;margin-bottom:2px}
+  .steps b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+
+  footer{margin-top:64px;border-top:1px solid var(--rule);padding:26px 0 40px;font-size:14px;color:var(--muted)}
+  footer p{max-width:none;margin:0 0 6px}
+
+  :focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){.fill{transition:none}}
+
+  @media (max-width:760px){
+    .wrap{padding:0 18px}
+    .top nav{display:none}
+    .hero{padding:36px 0 28px}
+    .facts{display:grid;grid-template-columns:1fr 1fr;gap:18px 20px}
+    .explorer{padding:20px 16px}
+    .bar,.drivers .bar{grid-template-columns:1fr 52px;gap:4px 10px}
+    .bar .label{grid-column:1 / -1;white-space:normal}
+    .tradeoff{grid-template-columns:1fr}
+    .tradeoff div+div{border-left:0;border-top:1px solid var(--rule)}
+    .recs{grid-template-columns:1fr}
+    .steps{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <span class="brand">Shipment Delay Prediction</span>
+    <nav aria-label="Sections">
+      <a href="#findings">Findings</a>
+      <a href="#model">Model</a>
+      <a href="#drivers">Drivers</a>
+      <a href="#actions">Actions</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero" id="findings">
+    <h1>First Class orders arrive late 95% of the time.</h1>
+    <p class="lede">This project predicts, at the moment an order is placed, whether it will ship late, so operations teams can act before the customer notices. The biggest signal is not the product, market or season. It is the shipping mode.</p>
+
+    <div class="facts">
+      <div class="fact"><b class="num">180,519</b><span>orders analysed, 2015 to 2017</span></div>
+      <div class="fact"><b class="num">54.8%</b><span>of all orders arrived late</span></div>
+      <div class="fact"><b class="num">0.792</b><span>ROC-AUC of the tuned model</span></div>
+      <div class="fact"><b class="num">69.9%</b><span>of late orders caught in advance</span></div>
+    </div>
+  </section>
+
+  <div class="explorer">
+    <div class="ex-head">
+      <div>
+        <h2 id="ex-title" style="margin:0">Late delivery rate by shipping mode</h2>
+        <p>Share of orders that arrived late, from 144,415 training orders.</p>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Compare late rate by">
+        <button role="tab" data-k="shipping_mode" aria-selected="true">Shipping mode</button>
+        <button role="tab" data-k="market" aria-selected="false">Market</button>
+        <button role="tab" data-k="department" aria-selected="false">Department</button>
+        <button role="tab" data-k="region" aria-selected="false">Region</button>
+        <button role="tab" data-k="season" aria-selected="false">Season</button>
+        <button role="tab" data-k="weekday" aria-selected="false">Weekday</button>
+      </div>
+    </div>
+    <ul class="bars" id="ex-bars" aria-live="polite"></ul>
+    <div class="ex-foot">
+      <span class="key"><i></i> Overall average, 54.8%</span>
+      <span id="ex-spread"></span>
+    </div>
+    <p class="insight" id="ex-insight"></p>
+  </div>
+
+  <section class="block" id="model">
+    <h2>Model performance</h2>
+    <p class="intro">Every model was trained and tested on the same leakage-safe split: 144,415 orders for training, 36,104 held out for testing.</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Model</th><th>ROC-AUC</th><th>Accuracy</th><th>Precision (late)</th><th>Recall (late)</th><th>F1</th></tr>
+        </thead>
+        <tbody class="num">
+          <tr class="best"><td>Decision Tree, tuned <span class="tag">Selected</span></td><td>0.792</td><td>70.6%</td><td>74.8%</td><td>69.9%</td><td>0.723</td></tr>
+          <tr><td>Decision Tree</td><td>0.774</td><td>71.3%</td><td>86.4%</td><td>56.6%</td><td>0.684</td></tr>
+          <tr><td>Random Forest</td><td>0.772</td><td>70.8%</td><td>85.5%</td><td>56.2%</td><td>0.679</td></tr>
+          <tr><td>Logistic Regression</td><td>0.769</td><td>71.1%</td><td>88.2%</td><td>54.7%</td><td>0.675</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tradeoff num">
+      <div><b class="up">+13.3 pts</b><small>Recall after tuning. The model now catches far more of the orders that will be late.</small></div>
+      <div><b class="down">&minus;11.5 pts</b><small>Precision after tuning. A few more false alarms reach the review queue.</small></div>
+      <div><b class="up">+0.018</b><small>ROC-AUC gain from 30 candidates &times; 5-fold cross-validation.</small></div>
+    </div>
+    <p style="margin-top:18px">Trading precision for recall is deliberate. A false alarm costs a planner a few minutes of review. A missed delay costs a customer complaint.</p>
+  </section>
+
+  <section class="block drivers" id="drivers">
+    <h2>What drives a prediction</h2>
+    <p class="intro">Permutation importance: how much the model's ROC-AUC drops when each input is shuffled. Top 10 inputs shown.</p>
+    <ul class="bars" id="drv-bars"></ul>
+  </section>
+
+  <section class="block" id="actions">
+    <h2>Recommended actions</h2>
+    <p class="intro">Ordered by expected impact.</p>
+    <ul class="recs">
+      <li>
+        <h3>Reset promised delivery windows</h3>
+        <p>First Class and Second Class orders miss their promise 95% and 77% of the time. Recalibrate the scheduled days for these tiers or renegotiate carrier SLAs.</p>
+      </li>
+      <li>
+        <h3>Use the model as a triage flag</h3>
+        <p>Send high-risk orders to an operations review queue to expedite, re-route or reset customer expectations. Do not auto-block orders.</p>
+      </li>
+      <li>
+        <h3>Validate two unexpected signals</h3>
+        <p>Confirm with the payments team why transfer payments matter, and confirm that processing and pending statuses are known at order time.</p>
+      </li>
+      <li>
+        <h3>Prioritise by risk, not margin</h3>
+        <p>Late and on-time orders earn almost the same profit ($31.42 vs $31.69 median), so rank interventions by delay probability and customer impact.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section class="block">
+    <h2>How it was built</h2>
+    <p class="intro">Columns only known after delivery were removed first, so the model sees only what exists when an order is placed.</p>
+    <ol class="steps">
+      <li><b>Clean</b>Removed leakage, constant and ID columns; capped price outliers.</li>
+      <li><b>Engineer</b>13 features including lead time, seasonality and delay-rate encodings fit on training data only.</li>
+      <li><b>Compare</b>Logistic Regression, Decision Tree and Random Forest on identical data.</li>
+      <li><b>Tune</b>RandomizedSearchCV on the best model, scored by ROC-AUC.</li>
+      <li><b>Explain</b>Permutation importance and partial dependence plots.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Data: <a href="https://www.kaggle.com/datasets/shashwatwork/dataco-smart-supply-chain-for-big-data-analysis" target="_blank" rel="noopener">DataCo Smart Supply Chain dataset</a>, 180,519 order lines, January 2015 to September 2017.</p>
+    <p>Built with Python, pandas and scikit-learn. All figures come from the project's held-out test results.</p>
+  </div>
+</footer>
+
+<script>
+const AVG = 0.548;
+const DATA = {
+  shipping_mode:{title:"Late delivery rate by shipping mode",
+    rows:{"First Class":0.9534,"Second Class":0.7659,"Same Day":0.4579,"Standard Class":0.3810},
+    insight:"Shipping mode alone moves the late rate from 38% to 95%. Faster tiers promise fewer days than carriers can deliver."},
+  market:{title:"Late delivery rate by market",
+    rows:{"Europe":0.5544,"Pacific Asia":0.5502,"USCA":0.5455,"Africa":0.5446,"LATAM":0.5430},
+    insight:"Every market sits within about one point of the average. Geography is not the root cause."},
+  department:{title:"Late delivery rate by department",
+    rows:{"Pet Shop":0.5748,"Health and Beauty":0.5660,"Book Shop":0.5576,"Outdoors":0.5564,"Fitness":0.5542,"Technology":0.5540,"Discs Shop":0.5510,"Apparel":0.5484,"Fan Shop":0.5479,"Footwear":0.5469,"Golf":0.5455},
+    insight:"Departments differ by only three points, which rules out a single bad supplier or warehouse."},
+  region:{title:"Late delivery rate by region (highest 10)",
+    rows:{"Central Africa":0.5729,"Central Asia":0.5647,"Western Europe":0.5617,"Eastern Europe":0.5587,"East Africa":0.5580,"South Asia":0.5578,"Southeast Asia":0.5574,"South of USA":0.5545,"East of USA":0.5541,"US Center":0.5516},
+    insight:"Even the worst regions are within two points of the average."},
+  season:{title:"Late delivery rate by season",
+    rows:{"Winter":0.5467,"Spring":0.5481,"Summer":0.5476,"Fall":0.5510},
+    insight:"Delays are structural, not seasonal. The holiday peak barely moves the rate."},
+  weekday:{title:"Late delivery rate by order weekday",
+    rows:{"Monday":0.5503,"Tuesday":0.5429,"Wednesday":0.5475,"Thursday":0.5518,"Friday":0.5519,"Saturday":0.5443,"Sunday":0.5493},
+    insight:"The day an order is placed makes almost no difference."}
+};
+
+const DRIVERS = [
+  ["Shipping mode delay history",0.2291,""],
+  ["Payment type: transfer",0.1206,"Unexpected; validate with payments team"],
+  ["Order status: processing",0.0612,"Check it is known at order time"],
+  ["Order status: pending",0.0584,"Check it is known at order time"],
+  ["Customer latitude",0.0334,""],
+  ["Customer longitude",0.0279,""],
+  ["Order status: suspected fraud",0.0128,""],
+  ["Market: LATAM",0.0071,""],
+  ["Shipping mode: same day",0.0052,""],
+  ["Order status: complete",0.0033,""]
+];
+
+const pct = v => (v*100).toFixed(1) + "%";
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function renderExplorer(key){
+  const d = DATA[key];
+  document.getElementById("ex-title").textContent = d.title;
+  const vals = Object.values(d.rows);
+  const ul = document.getElementById("ex-bars");
+  ul.innerHTML = Object.entries(d.rows).map(([k,v]) =>
+    `<li class="bar"><span class="label">${esc(k)}</span>
+      <span class="track" aria-hidden="true"><span class="fill" style="width:0"></span><span class="avg" style="left:${AVG*100}%"></span></span>
+      <span class="val num">${pct(v)}</span></li>`).join("");
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    ul.querySelectorAll(".fill").forEach((f,i) => f.style.width = (vals[i]*100) + "%");
+  }));
+  const spread = (Math.max(...vals) - Math.min(...vals)) * 100;
+  document.getElementById("ex-spread").textContent = `Gap between highest and lowest: ${spread.toFixed(1)} points`;
+  document.getElementById("ex-insight").textContent = d.insight;
+}
+
+document.querySelectorAll(".tabs button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected","false"));
+    b.setAttribute("aria-selected","true");
+    renderExplorer(b.dataset.k);
+  });
+});
+
+(function renderDrivers(){
+  const max = DRIVERS[0][1];
+  document.getElementById("drv-bars").innerHTML = DRIVERS.map(([n,v,note]) =>
+    `<li class="bar"><span class="label">${esc(n)}${note ? `<span class="note">${esc(note)}</span>` : ""}</span>
+      <span class="track" aria-hidden="true"><span class="fill" style="width:${(v/max*100).toFixed(1)}%"></span></span>
+      <span class="val num">${v.toFixed(3)}</span></li>`).join("");
+})();
+
+renderExplorer("shipping_mode");
+</script>
+</body>
+</html>
